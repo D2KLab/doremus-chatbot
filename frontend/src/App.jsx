@@ -10,7 +10,6 @@ import {
   ChevronUp,
 } from "lucide-react";
 
-// --- COMPONENT: SPARQL FORMATTER (No Changes) ---
 const SparqlFormatter = ({ query }) => {
   if (!query)
     return (
@@ -73,8 +72,7 @@ const SparqlFormatter = ({ query }) => {
   );
 };
 
-// --- COMPONENT: SETTINGS MODAL (No Changes) ---
-const SettingsModal = ({ isOpen, onClose, model, setModel }) => {
+const SettingsModal = ({ isOpen, onClose, model, setModel, models }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -100,13 +98,15 @@ const SettingsModal = ({ isOpen, onClose, model, setModel }) => {
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
-              <option value="gpt-5.2">openai - gpt-5.2</option>
-              <option value="gpt-4.1">openai - gpt-4.1</option>
-              <option value="qwen3-coder:480b">
-                ollama - qwen3-coder:480b
-              </option>
-              <option value="qwen3-coder:30b">ollama - qwen3-coder:30b</option>
-              <option value="ministral-3:14b">mistral - ministral-3:14b</option>
+              {models.length === 0 ? (
+                <option value="">No models available</option>
+              ) : (
+                models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>
@@ -128,7 +128,6 @@ const formatArgs = (args) => {
   if (typeof args === "string") return args;
   if (typeof args !== "object") return String(args);
 
-  // key: value per line
   return Object.entries(args)
     .map(([k, v]) => {
       const vv =
@@ -144,7 +143,6 @@ const formatArgs = (args) => {
     .join("\n");
 };
 
-// --- COMPONENT: TOOL CALL CARD (No Changes) ---
 const ToolCallCard = ({ tool }) => {
   const isError = tool.status === "error";
   const border = isError ? "border-red-700" : "border-slate-700";
@@ -201,10 +199,10 @@ const ToolCallCard = ({ tool }) => {
   );
 };
 
-// --- MAIN APP ---
 function App() {
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gpt-4.1");
+  const [models, setModels] = useState([]);
+  const [selectedModel, setSelectedModel] = useState("");
   const [messages, setMessages] = useState([]);
   const [currentSparql, setCurrentSparql] = useState(null);
   const [toolHistory, setToolHistory] = useState([]);
@@ -221,6 +219,19 @@ function App() {
   }, [messages]);
 
   useEffect(() => {
+    fetch("/models")
+      .then((res) => res.json())
+      .then((data) => {
+        const list = data.models ?? [];
+        setModels(list);
+        setSelectedModel((prev) =>
+          list.some((m) => m.id === prev) ? prev : (list[0]?.id ?? "")
+        );
+      })
+      .catch((e) => console.error("Failed to load models", e));
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (copyResetTimeoutRef.current)
         clearTimeout(copyResetTimeoutRef.current);
@@ -228,7 +239,7 @@ function App() {
   }, []);
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !selectedModel) return;
 
     const userMsg = { role: "user", content: input };
     setMessages((prev) => [...prev, userMsg]);
@@ -238,8 +249,7 @@ function App() {
     setCurrentSparql(null);
     setToolHistory([]);
 
-    // Auto-open trace when a new message starts so the user sees activity
-    setIsTraceOpen(true);
+      setIsTraceOpen(true);
 
     try {
       const response = await fetch("/chat", {
@@ -251,6 +261,17 @@ function App() {
           history: messages.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
+
+      if (!response.ok) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "The selected model is not available on the server.",
+          },
+        ]);
+        return;
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -303,7 +324,6 @@ function App() {
                   let i = -1;
                   if (id) i = next.findIndex((t) => t.id === id);
                   if (i === -1) {
-                    // fallback: last running
                     const idx = [...next]
                       .reverse()
                       .findIndex((t) => t.status === "running");
@@ -384,9 +404,7 @@ function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans overflow-hidden">
-      {/* --- LEFT SIDEBAR (Visualization) --- */}
       <div className="w-5/12 bg-slate-950 text-slate-200 border-r border-slate-800 flex flex-col shadow-2xl z-10 transition-all duration-300">
-        {/* SECTION 1: TOOL EXECUTION HISTORY (Collapsible) */}
         <div
           className={`
             flex flex-col border-b border-slate-800 transition-all duration-300 ease-in-out overflow-hidden
@@ -395,7 +413,6 @@ function App() {
             } /* Collapsed height matches header size approx */
           `}
         >
-          {/* Header - Clickable to Toggle */}
           <div
             onClick={() => setIsTraceOpen(!isTraceOpen)}
             className="p-4 bg-slate-900 border-b border-slate-800 cursor-pointer hover:bg-slate-800/80 transition-colors flex justify-between items-center group"
@@ -418,7 +435,6 @@ function App() {
             </button>
           </div>
 
-          {/* List Content - Only visible when open */}
           <div
             className={`flex-1 overflow-y-auto p-4 bg-slate-950/50 ${
               !isTraceOpen && "hidden"
@@ -437,8 +453,6 @@ function App() {
           </div>
         </div>
 
-        {/* SECTION 2: SPARQL VIEWER (Fills Remaining Space) */}
-        {/* 'flex-1' makes this section grab all available vertical space left by the section above */}
         <div className="flex-1 flex flex-col min-h-0 bg-black transition-all duration-300">
           <div className="p-3 bg-slate-900/80 border-t border-b border-slate-800 flex justify-between items-center backdrop-blur">
             <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
@@ -471,7 +485,6 @@ function App() {
         </div>
       </div>
 
-      {/* --- RIGHT SIDE: CHAT AREA --- */}
       <div className="flex-1 flex flex-col bg-white relative">
         <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
         <div className="flex-1 overflow-y-auto p-6 space-y-6 relative">
@@ -542,7 +555,7 @@ function App() {
               />
               <button
                 onClick={sendMessage}
-                disabled={isStreaming || !input.trim()}
+                disabled={isStreaming || !input.trim() || !selectedModel}
                 className="absolute right-2 top-2 bottom-2 aspect-square flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-lg transition-all"
               >
                 <Send size={18} />
@@ -559,6 +572,7 @@ function App() {
         onClose={() => setIsSettingsOpen(false)}
         model={selectedModel}
         setModel={setSelectedModel}
+        models={models}
       />
     </div>
   );

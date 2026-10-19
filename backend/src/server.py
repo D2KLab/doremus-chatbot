@@ -5,14 +5,14 @@ import re
 import traceback
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
 
 # IMPORT YOUR EXISTING AGENT
-from agent.mcp_testing_agent import initialize_agent 
+from agent.mcp_testing_agent import initialize_agent, available_models
 
 app = FastAPI()
 
@@ -41,6 +41,9 @@ async def get_agent(model: str):
         agent = await initialize_agent(model)
         _AGENT_CACHE[model] = agent
         return agent
+
+def is_model_available(name: str) -> bool:
+    return any(m["id"] == name for m in available_models())
 
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -142,11 +145,11 @@ class ChatRequest(BaseModel):
     message: str
     model: str
 
-# 1. Where the built frontend is expected inside the backend image
+# Where the built frontend is expected inside the backend image
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 index_path = os.path.join(static_dir, "index.html")
 
-# 2. Mount the React build folder (CSS/JS assets), if present
+# Mount the React build folder (CSS/JS assets), if present
 if os.path.isdir(static_dir):
     assets_dir = os.path.join(static_dir, "assets")
     if os.path.isdir(assets_dir):
@@ -158,6 +161,10 @@ async def root():
     if os.path.isfile(index_path):
         return FileResponse(index_path)
     return "<h1>Welcome to the MCP Backend</h1>"
+
+@app.get("/models")
+async def list_models():
+    return {"models": available_models()}
 
 def _event_brief(ev: dict) -> str:
     try:
@@ -179,6 +186,9 @@ def _extract_error_text(ev: dict) -> str:
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
+    if not is_model_available(req.model):
+        raise HTTPException(status_code=400, detail=f"Model not available: {req.model}")
+
     if _GREETING_RE.match(req.message or ""):
         async def event_generator():
             payload = json.dumps({"type": "message", "data": "Hello! What would you like to ask about DOREMUS?"})
@@ -296,12 +306,7 @@ async def chat_endpoint(req: ChatRequest):
     
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
-# 1. Mount the React build folder (CSS/JS assets)
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_dir):
-    app.mount("/assets", StaticFiles(directory=os.path.join(static_dir, "assets")), name="assets")
-
-# 2. Catch-all route: Serve index.html for any other path (React Router support)
+# Catch-all route: Serve index.html for any other path (React Router support)
 @app.get("/{full_path:path}")
 async def serve_react_app(full_path: str):
     # If the specific file exists (like favicon.ico), serve it

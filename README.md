@@ -11,7 +11,7 @@ The application uses:
 - **LangGraph** for building agentic workflows
 - **LangChain** for LLM integration with tool binding
 - **Model Context Protocol (MCP)** for structured access to the DOREMUS Knowledge Graph
-- **Multiple LLM providers** (OpenAI, Groq, Anthropic, Ollama)
+- **Multiple LLM providers** (OpenAI, Ollama)
 
 ## 📁 Project Structure
 
@@ -65,10 +65,11 @@ Edit `.env` with your API keys:
 
 ```dotenv
 OPENAI_API_KEY=sk-...
-GROQ_API_KEY=gsk_...
+OPENAI_MODELS=gpt-5.6
 LANGSMITH_API_KEY=lsv2_...
-OLLAMA_API_URL=https://mcp-kg-ollama.tools.eurecom.fr
-OLLAMA_API_KEY=...
+OLLAMA_API_URL=https://llm.tools.eurecom.fr/v1
+OLLAMA_API_KEY=sk-...
+OLLAMA_MODELS=...
 ```
 
 4. **Build the docker container:**
@@ -99,7 +100,7 @@ Send a message to the chatbot and receive streaming responses.
 ```json
 {
   "message": "Find all compositions by Beethoven in the knowledge graph",
-  "model": "openai"
+  "model": "gpt-5.6"
 }
 ```
 
@@ -110,7 +111,22 @@ Send a message to the chatbot and receive streaming responses.
 
 **Query Parameters:**
 
-- `model`: LLM provider (`openai`, `groq`, `anthropic`, `ollama`)
+- `model`: Model name, as listed by `GET /models` (e.g. `gpt-5.6`)
+
+### `GET /models`
+
+Returns the models that can be selected. A model is listed only when its provider's API key is present in `.env`.
+
+**Response:**
+
+```json
+{
+  "models": [
+    { "id": "gpt-5.6", "label": "openai - gpt-5.6" },
+    { "id": "<model>", "label": "ollama - <model>" }
+  ]
+}
+```
 
 ### `GET /`
 
@@ -132,7 +148,7 @@ graph LR
 
 1. **User Input**: User sends a natural language query via the React frontend
 2. **Agent Init**: Backend initializes a LangGraph React agent with:
-   - Selected LLM (OpenAI, Groq, Anthropic, or Ollama)
+   - Selected LLM (OpenAI or Ollama)
    - MCP tools from DOREMUS Knowledge Graph
    - System prompt with DOREMUS ontology knowledge
 3. **Tool Binding**: LLM can call MCP tools to:
@@ -191,23 +207,26 @@ graph LR
 | Variable                | Description               | Example                           |
 | ----------------------- | ------------------------- | --------------------------------- |
 | `OPENAI_API_KEY`        | OpenAI API key            | `sk-...`                          |
-| `GROQ_API_KEY`          | Groq API key              | `gsk_...`                         |
+| `OPENAI_MODELS`         | Comma-separated OpenAI model list | `gpt-5.6`                 |
 | `LANGSMITH_API_KEY`     | LangSmith tracing API key | `lsv2_...`                        |
 | `LANGSMITH_PROJECT`     | LangSmith project name    | `rdfMCP_tester`                   |
-| `OLLAMA_API_URL`        | Ollama server URL         | `https://...`                     |
-| `OLLAMA_API_KEY`        | Ollama authentication     | Base64 encoded                    |
-| `LLM_EVAL_PROVIDER`     | Default LLM provider      | `openai`                          |
+| `OLLAMA_API_URL`        | OpenAI-compatible endpoint for Ollama-hosted models | `https://llm.tools.eurecom.fr/v1` |
+| `OLLAMA_API_KEY`        | Bearer key for `OLLAMA_API_URL` | `sk-...`                     |
+| `OLLAMA_MODELS`         | Comma-separated Ollama model list | `...`                     |
 | `GRAPH_RECURSION_LIMIT` | Agent recursion depth     | `25`                              |
 | `DOREMUS_MCP_URL`       | MCP server endpoint       | `https://Doremus.fastmcp.app/mcp` |
 | `DOREMUS_MCP_TRANSPORT` | MCP transport protocol    | `streamable_http`                 |
 
 ## 🧪 Available LLM Models
 
-| Provider | Model                     | Temperature |
-| -------- | ------------------------- | ----------- |
-| OpenAI   | `gpt-5.2`                 | 0.0         |
-| Groq     | `llama-3.3-70b-versatile` | 0.0         |
-| Ollama   | `qwen3-coder:30b`         | 0.0         |
+Models are configured per provider through environment variables. `GET /models` offers a model only when its provider's API key is also set.
+
+| Provider | Models variable | API key variable | Endpoint                          |
+| -------- | --------------- | ---------------- | --------------------------------- |
+| OpenAI   | `OPENAI_MODELS` | `OPENAI_API_KEY` | OpenAI API                        |
+| Ollama   | `OLLAMA_MODELS` | `OLLAMA_API_KEY` | `OLLAMA_API_URL` (OpenAI-compatible, e.g. vLLM) |
+
+Model lists are comma-separated, e.g. `OPENAI_MODELS=gpt-5.6,gpt-5.2`. Legacy providers (native Ollama, cloud Ollama) are kept in the backend, ready to re-enable in `PROVIDERS`.
 
 ## 📝 Example Queries
 
