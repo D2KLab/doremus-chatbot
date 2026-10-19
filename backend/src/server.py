@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
 
 # IMPORT YOUR EXISTING AGENT
-from agent.mcp_testing_agent import initialize_agent, available_models, default_model
+from agent.mcp_testing_agent import initialize_agent, available_models, default_model, recursion_limit
 
 app = FastAPI()
 
@@ -200,7 +200,7 @@ async def chat_endpoint(req: ChatRequest):
     async def event_generator():
         try:
             # Stream events from the graph
-            async for event in agent.astream_events({"messages": [HumanMessage(content=req.message)]}, version="v1"):
+            async for event in agent.astream_events({"messages": [HumanMessage(content=req.message)]}, version="v1", config={"recursion_limit": recursion_limit}):
 
                 event_type = event["event"]
                 event_name = event.get("name") or event.get("metadata", {}).get("name")
