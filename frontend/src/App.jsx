@@ -49,7 +49,7 @@ const SparqlFormatter = ({ query }) => {
   return (
     <div className="font-mono text-xs leading-relaxed">
       {query
-        .replace(/#/g, "\n#")
+        .replace(/([ \t])#/g, "$1\n#")
         .split("\n")
         .map((line, i) => {
           const isComment = line.trim().startsWith("#");
