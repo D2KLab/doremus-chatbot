@@ -224,9 +224,7 @@ function App() {
       .then((data) => {
         const list = data.models ?? [];
         setModels(list);
-        setSelectedModel((prev) =>
-          list.some((m) => m.id === prev) ? prev : (list[0]?.id ?? "")
-        );
+        setSelectedModel(data.default || list[0]?.id || "");
       })
       .catch((e) => console.error("Failed to load models", e));
   }, []);

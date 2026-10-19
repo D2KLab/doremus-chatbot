@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
 
 # IMPORT YOUR EXISTING AGENT
-from agent.mcp_testing_agent import initialize_agent, available_models
+from agent.mcp_testing_agent import initialize_agent, available_models, default_model
 
 app = FastAPI()
 
@@ -164,7 +164,7 @@ async def root():
 
 @app.get("/models")
 async def list_models():
-    return {"models": available_models()}
+    return {"models": available_models(), "default": default_model()}
 
 def _event_brief(ev: dict) -> str:
     try:

@@ -124,7 +124,8 @@ Returns the models that can be selected. A model is listed only when its provide
   "models": [
     { "id": "gpt-5.6", "label": "openai - gpt-5.6" },
     { "id": "<model>", "label": "ollama - <model>" }
-  ]
+  ],
+  "default": "gpt-5.6"
 }
 ```
 
@@ -213,6 +214,7 @@ graph LR
 | `OLLAMA_API_URL`        | OpenAI-compatible endpoint for Ollama-hosted models | `https://llm.tools.eurecom.fr/v1` |
 | `OLLAMA_API_KEY`        | Bearer key for `OLLAMA_API_URL` | `sk-...`                     |
 | `OLLAMA_MODELS`         | Comma-separated Ollama model list | `...`                     |
+| `DEFAULT_MODEL`         | Model preselected in the UI, falls back to the first available | `...` |
 | `GRAPH_RECURSION_LIMIT` | Agent recursion depth     | `25`                              |
 | `DOREMUS_MCP_URL`       | MCP server endpoint       | `https://Doremus.fastmcp.app/mcp` |
 | `DOREMUS_MCP_TRANSPORT` | MCP transport protocol    | `streamable_http`                 |
@@ -226,7 +228,7 @@ Models are configured per provider through environment variables. `GET /models` 
 | OpenAI   | `OPENAI_MODELS` | `OPENAI_API_KEY` | OpenAI API                        |
 | Ollama   | `OLLAMA_MODELS` | `OLLAMA_API_KEY` | `OLLAMA_API_URL` (OpenAI-compatible, e.g. vLLM) |
 
-Model lists are comma-separated, e.g. `OPENAI_MODELS=gpt-5.6,gpt-5.2`. Legacy providers (native Ollama, cloud Ollama) are kept in the backend, ready to re-enable in `PROVIDERS`.
+Model lists are comma-separated, e.g. `OPENAI_MODELS=gpt-5.6,gpt-5.2`. Set `DEFAULT_MODEL` to preselect one of them in the UI. Legacy providers (native Ollama, cloud Ollama) are kept in the backend, ready to re-enable in `PROVIDERS`.
 
 ## 📝 Example Queries
 

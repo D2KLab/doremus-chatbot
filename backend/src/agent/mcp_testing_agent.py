@@ -103,6 +103,14 @@ def create_model(model_name: str):
         raise ValueError(f"Unknown model: {model_name}")
     return PROVIDERS[provider_name]["create"](model_name)
 
+def default_model() -> str | None:
+    """Resolve DEFAULT_MODEL to an available model, falling back to the first one."""
+    requested = os.getenv("DEFAULT_MODEL", "").strip()
+    models = available_models()
+    if requested and any(m["id"] == requested for m in models):
+        return requested
+    return models[0]["id"] if models else None
+
 async def initialize_agent(model_name: str):
     tools = await client.get_tools()
     llm = create_model(model_name)
